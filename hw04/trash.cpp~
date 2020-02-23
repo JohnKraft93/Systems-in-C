@@ -1,0 +1,43 @@
+#include <stdio.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <string.h>
+
+struct mFILE {
+	int *fd;	
+};
+
+mFILE* mfopen(const char *fn, const char *mode){
+	mFILE* mfile = (mFILE*) malloc(sizeof(mFILE));
+	int flag = 0;
+	mode_t perms = S_IRUSR | S_IWUSR;
+	if(strcmp(mode,"w") == 0){
+		flag =  O_WRONLY | O_CREAT | O_TRUNC;
+	}
+	else if(strcmp(mode, "a") == 0) {
+		flag = O_WRONLY | O_CREAT | O_APPEND;
+	}
+	else if(strcmp(mode, "r") == 0) {
+		flag = O_RDONLY;
+	}
+
+	int *f = *open(fn, flag, perms);	
+	mfile->fd = f;
+	return mfile;		
+}
+/*
+int mfread(mFILE *fptr, size_t size, size_t nitems){
+	return read(fptr->fd,size,nitems);
+}
+int mfwrite(mFILE *fptr, size_t size, size_t nitems){
+	return write(fptr->fd, size, nitems);
+}
+int mfclose(mFILE *fptr){
+	return close(fptr->fd); 
+}
+*/
+int main(int argc, char **argv){
+	FILE *fp = mfopen(argv[1], "w");
+	
+}

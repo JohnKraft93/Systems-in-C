@@ -1,0 +1,64 @@
+#include <stdio.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <string.h>
+
+struct mFILE {
+	int fd;	
+};
+
+mFILE* mfopen(const char *fn, const char *mode){
+	mFILE* mfile = (mFILE*) malloc(sizeof(mFILE));
+	int flag = 0;
+	mode_t perms = S_IRUSR | S_IWUSR;
+	if(strcmp(mode,"w") == 0){
+		flag =  O_WRONLY | O_CREAT | O_TRUNC;
+	}
+	else if(strcmp(mode, "a") == 0) {
+		flag = O_WRONLY | O_CREAT | O_APPEND;
+	}
+	else if(strcmp(mode, "r") == 0) {
+		flag = O_RDONLY;
+	}
+	else if(strcmp(mode, "r+") == 0) {
+		flag = O_RDWR;
+	}
+	else if(strcmp(mode, "w+") == 0) {
+		flag = O_RDWR | O_CREAT | O_TRUNC; 
+	}
+	else if(strcmp(mode, "a+") == 0) {
+		flag = O_RDWR | O_CREAT | O_APPEND; 
+	}
+	mfile->fd = open(fn, flag, perms);	
+	return mfile;		
+}
+
+int mfread(void *ptr, size_t size, size_t nitems, mFILE *fptr){
+	return read(fptr->fd, ptr, size*nitems);
+}
+
+int mfwrite(void *ptr, size_t size, size_t nitems, mFILE *fptr){
+	return write(fptr->fd, ptr,size*nitems);
+}
+
+int mfclose(mFILE *fptr){
+	return close(fptr->fd); 
+}
+int main(int argc, char **argv){
+	mFILE *fp = mfopen("a.csv", "w");
+	char c[15] = "hello im dum.\n";
+	mfwrite(&c, 15,1,fp);
+	mfclose(fp);
+	fp = mfopen("a.csv", "r");
+	mFILE fpso;
+	fpso.fd = 1;	
+	char d;
+	while(mfread(&d, 1, 1, fp)){	
+		mfwrite(&d, 1, 1, &fpso);
+	}
+
+//	mFILE *fp2 = mfopen(argv[2], "w");
+	mfclose(fp);
+//	mfclose(fp2);
+}
