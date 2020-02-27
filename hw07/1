@@ -1,0 +1,118 @@
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+
+struct node{
+	size_t size;
+	node *prev;
+	node *next;
+};
+
+int heapStart;
+node *head;
+node *tail;
+
+void *mmalloc(size_t size){
+	int PAGE = 1024;
+	if(size > 1012) {
+		printf("WARNING..CAN'T ALLOCATE MORE THAN 1012 BYTES.\n");
+		return NULL;
+	}
+	else {
+		printf("mmalloc requesting %d bytes\n", size);
+		node *runner = head;
+		while(true) {
+			while(runner != NULL){
+				if(size == runner->size || runner->size - size < 13) {
+					if(runner->size > size) {
+						runner->size = size;
+						if(runner->prev != NULL){
+							runner->prev->next = runner->next;
+						}
+						if(runner->next != NULL) {
+							runner->next->prev = runner->prev;
+						}	
+						printf("malloc: Node at %d has enough space %d\n", (int) runner - heapStart, runner->size);
+						return (void*) (runner+1);
+					}
+				}
+				if(size < runner->size) {
+					printf("hello\n");
+					int pos = (int) runner - heapStart;
+					node *remain = (node*) ((int)runner + 12 + size);
+					remain->size = (int) runner->size - size - 12;
+					if(runner->prev != NULL){
+						runner->prev->next = remain;					
+					}
+					else { 
+						head = remain;
+					}
+					if(runner->next != NULL) {
+						runner->next->prev = remain;				
+					}
+					else {
+						tail = remain;
+					//	printf("TAILLLLLL: %d\n", (int)tail);
+					}
+					remain->next = runner->next;
+					remain->prev = runner->prev;
+					int posRe = (int) remain - heapStart;
+					printf("mmalloc: Node at %d has enough space %d\n", pos, runner->size);					
+					printf("mmalloc: Splitting %d (%d) into %d (%d) and %d (%d)\n", pos, runner->size, pos, size, posRe, remain->size);	
+					return (void*) (remain+1);
+				}
+				runner = runner->next;
+			}
+			printf("mmalloc: Calling sbrk..\n");
+			node *current;
+			current = (node*) sbrk(1024);
+			current->size = 1024 - 12;
+
+			if (tail == NULL) {
+				head =(node*) ((int)current-heapStart);
+				tail =(node*) ((int)current-heapStart);
+				printf("TTT: %d\n", (int) tail);
+			}
+			else {
+				printf("TAIL: %d\n", (int) tail-heapStart);
+			//	current->prev = tail;
+				current->prev = (node*) ((int)tail-heapStart);
+			
+			//	printf("RUNPREV: %d\n", (int) current->prev);
+				tail->next = current;
+				tail = current;
+			}
+			current->next = NULL;
+			
+			runner = current;
+		}
+	}			
+}
+
+void *mfree(void *ptr){
+
+}
+
+void printFreeList(){
+	printf("=== FREE LIST ===\n");
+	node* runner = head;
+	while(runner != NULL){
+		printf("%d: (%d, %d, %d)\n",(int) runner - heapStart, (int) runner->prev, (int) runner->next, runner->size);
+		runner = runner->next;
+	}	
+	printf("=== END       ===\n"); 
+}
+
+int main(int argc, char **argv) {
+	printf("Starting Main()\n");
+	heapStart = (int) sbrk(0);
+	head = NULL;
+	tail = NULL;
+//	printFreeList();
+	mmalloc(10);	
+//	printFreeList();
+	mmalloc(500);
+//	printFreeList();
+	mmalloc(700);
+	printFreeList();
+}
