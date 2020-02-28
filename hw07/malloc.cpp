@@ -18,6 +18,10 @@ void *mmalloc(size_t size){
 		printf("WARNING..CAN'T ALLOCATE MORE THAN 1012 BYTES.\n");
 		return NULL;
 	}
+	if(size < 0) {
+		printf("WARNING..CAN'T ALLOCATE LESS THAN 0 BYTES.\n");
+		return NULL;
+	}
 	else {
 		printf("mmalloc requesting %d bytes\n", size);
 		node *runner = head;
@@ -130,7 +134,7 @@ int main(int argc, char **argv) {
 	
 	printFreeList();	
 	printf("MAIN: Testing perfect match..\n");
-	void* p = mmalloc(1012);
+	int* p =(int*) mmalloc(16*4);
 	printFreeList();	
 	printf("MAIN: free perfect match..\n");
 	mfree(p);
