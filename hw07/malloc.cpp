@@ -23,7 +23,7 @@ void *mmalloc(size_t size){
 		return NULL;
 	}
 	else {
-		printf("mmalloc requesting %d bytes\n", size);
+		printf("mmalloc: requesting %d bytes\n", size);
 		node *runner = head;
 		while(true) {
 			while(runner != NULL){
@@ -32,14 +32,20 @@ void *mmalloc(size_t size){
 						runner->size = size;
 						if(runner->prev != NULL){
 							runner->prev->next = runner->next;
+							tail = runner->prev;
+						}
+						else {
+							head = runner->next;
 						}
 						if(runner->next != NULL) {
 							runner->next->prev = runner->prev;
 						}
-						tail = runner->prev;
-						printf("malloc: Node at %d has enough space %d\n", (int) runner - heapStart, runner->size);
-						printf("Releasing %d (size=%d) from free list\n", (int) runner - heapStart, runner->size);
-						printf("Returning %d\n", (int)runner+12-heapStart);
+						else {
+							tail = runner->prev;
+						}
+						printf("mmalloc: node at %d has enough space (%d)\n", (int) runner - heapStart, runner->size);
+						printf("mmalloc: releasing %d (size=%d) from free list\n", (int) runner - heapStart, runner->size);
+						printf("mmalloc: returning %d\n", (int)runner+12-heapStart);
 						return (void*) (runner+1);
 					}
 				}
@@ -61,16 +67,20 @@ void *mmalloc(size_t size){
 					remain->next = runner->next;
 					remain->prev = runner->prev;	
 					int posRe = (int) remain - heapStart;
-					printf("mmalloc: Node at %d has enough space %d\n", pos, runner->size);					
-					printf("mmalloc: Splitting %d (%d) into %d (%d) and %d (%d)\n", pos, runner->size, pos, size, posRe, remain->size);	
+					printf("mmalloc: node at %d has enough space (%d)\n", pos, runner->size);					
+					printf("mmalloc: splitting %d (%d) into %d (%d) and %d (%d)\n", pos, runner->size, pos, size, posRe, remain->size);	
 					runner->size = size;
 					return (void*) (runner+1);
 				}
 				runner = runner->next;
 			}
-			printf("mmalloc: Calling sbrk..\n");
+			printf("mmalloc: calling sbrk..\n");
 			node *current;
 			current = (node*) sbrk(1024);
+			if (current == (void*) -1) {
+				perror("SBRK ERROR");
+				return NULL;
+			}
 			current->size = 1024 - 12;
 			if (tail == NULL) {
 				head = current;
@@ -102,8 +112,6 @@ void *mfree(void *ptr){
 		tail = n;
 		tail->next = NULL;
 	}
-
-	printf("TAIL: %d\n", (int) tail-heapStart);
 	return (void*) n;
 }
 
@@ -120,28 +128,67 @@ void printFreeList(){
 }
 
 int main(int argc, char **argv) {
-	printf("MAIN: Starting Main()\n");
+	printf("main: starting main()\n");
 	heapStart = (int) sbrk(0);
+	if(heapStart == -1) {
+		perror("SBRK ERROR");
+		exit(1);
+	}
 	head = NULL;
 	tail = NULL;
 	printFreeList();
-	printf("MAIN: Testing imperfect match..\n");
-	int* x =(int*)  mmalloc(12);
-	for(int i = 0; i < 3; i++) {
-		x[i] = 42;
-		printf("%d\n", x[i]);
-	}
+	printf("main: testing imperfect match..\n");
+	void *fp = mmalloc(10);
+	printFreeList();
+
+	printf("main: testing perfect match..\n");
+	void *fp2 = mmalloc(1012);
+	printFreeList();
 	
+	printf("main: free perfect match..\n");
+	mfree(fp2);
+	printFreeList();
+	
+	printf("main: testing imperfect match..\n");
+	void *fp3 = mmalloc(50);
+	printFreeList();
+
+
+/*
+	printf("main: testing perfect match..\n");
+	void *fp = mmalloc(1012);
+	printFreeList();
+
+	printf("main: free perfect match..\n");
+	mfree(fp);	
+	printFreeList();
+
+	printf("main: testing perfect match..\n");
+	void *fp2 = mmalloc(1012);
 	printFreeList();	
-	printf("MAIN: Testing perfect match..\n");
-	int* p =(int*) mmalloc(16*4);
+
+	printf("main: testing imperfect match..\n");
+	void *fp3 = mmalloc(800);
+	void *fp4 = mmalloc(750);	
+	void *fp5 = mmalloc(700);
+	void *fp6 = mmalloc(650);
 	printFreeList();	
-	printf("MAIN: free perfect match..\n");
-	mfree(p);
-	printFreeList();
-	printf("MAIN: Testing imperfect match..\n");
-	mmalloc(50);
-	printFreeList();
-	mfree(x);
-	printFreeList();
+
+	printf("main: free imperfect match..\n");
+	mfree(fp4);
+	printFreeList();	
+	
+	printf("main: Remove middle node from free list..\n");
+	void *fp7 = mmalloc(250);
+	printFreeList();	
+	
+	printf("main: Remove start node from free list..\n");
+	void *fp8 = mmalloc(200);
+	printFreeList();		
+
+	printf("main: Remove end node from free list..\n");
+	void *fp9 = mmalloc(750);
+	printFreeList();	
+	
+*/
 }
