@@ -112,7 +112,6 @@ void *mfree(void *ptr){
 		tail = n;
 		tail->next = NULL;
 	}
-	return (void*) n;
 }
 
 void printFreeList(){
