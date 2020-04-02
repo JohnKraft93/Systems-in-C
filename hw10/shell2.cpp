@@ -84,8 +84,10 @@ int main(int argc, char **argv) {
 	}
 
 	for(int i = 0; i < 3; i++){
-		if(files[i] == true){
-			fclose(filesptr[i]);
+		if(files[i] == true){			
+			if(fclose(filesptr[i]) == -1){
+				perror("FILE CLOSE ERROR");
+			}
 		}
 	}
 }	
