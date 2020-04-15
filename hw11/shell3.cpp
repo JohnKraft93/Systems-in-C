@@ -8,15 +8,26 @@
 char **split(char *command, char **arg){
 	int size = 0;
 	char *ptr;
-	*ptr = '\0';
 	ptr = strtok(command, "_");
 	while(ptr != NULL){
 		arg = (char**) realloc(arg, sizeof(char*) * (size+1));
+		if(arg == NULL){
+			perror("REALLOC ERROR");
+			exit(1);
+		}
 		arg[size] = strdup(ptr);
+		if(arg[size] == NULL){
+			perror("STRDUP ERROR");
+			exit(1);	
+		}
 		ptr = strtok(NULL, "_");
 		size++;
 	}
 	arg = (char**) realloc(arg, sizeof(char*) * (size+1));
+	if(arg == NULL){
+		perror("REALLOC ERROR");
+		exit(1);
+	}
 	arg[size] = NULL;
 	return arg;
 }
@@ -31,8 +42,23 @@ void *mfree(char **arg){
 		}
 		pos++;
 	}
-	free(arg);
+	if(arg != NULL){free(arg);}
 }
+
+void *closepipes(int com, int **pfds, int numpipes){
+	for (int i = 0; i < numpipes; i++){
+		if(i != com && i != com -1){
+			for(int j = 0; j < 2; j++){
+				if(close(pfds[i][j]) == -1){
+					perror("CLOSE ERROR");
+					exit(1);
+				}
+			}
+		}
+	}
+}
+
+
 
 int main(int argc, char **argv){
 	if(argc < 3){
@@ -40,49 +66,68 @@ int main(int argc, char **argv){
 		printf("./shell command_1 command_2 ...optional for more.\n");
 		exit(1);
 	}
-
 	int **pfds = (int **) malloc(sizeof(int*) * argc-2);
-	int j;
-	for(j = 0; j < argc-2; j++){
-		pfds[j] = (int*) malloc(sizeof(int) * 2);
-		pipe(pfds[j]);
-	}
-	pfds[j] = NULL;
-//	int pfd[2];
-//	pipe(pfd);
-	char **arg;
-
-	//command 1
-	int retval = fork();
-	if(retval == 0){
-		close(pfds[0][0]);
-		dup2(pfds[0][1], 1);
-		arg = NULL;
-		arg = split(argv[1], arg);
-		execvp(arg[0],arg);
-		mfree(arg);
-	} else if(retval < 0){
-		perror("FORK ERROR");
+	if(pfds == NULL){
+		perror("MALLOC ERROR");
 		exit(1);
 	}
-	//command 2
-	retval = fork();
-	if(retval == 0){
-		close(pfds[0][1]);
-		dup2(pfds[0][0], 0);
-		arg = NULL;
-		arg = split(argv[2], arg);
-		execvp(arg[0], arg);
-		mfree(arg);
-	} else if(retval < 0){
-		perror("FORK ERROR");
-		exit(1);
+	int x;
+	for(x = 0; x < argc-2; x++){
+		pfds[x] = (int*) malloc(sizeof(int) * 2);
+		if(pfds[x] == NULL){
+			perror("MALLOC ERROR");
+			exit(1);
+		}
+		pipe(pfds[x]);
+	}
+	pfds[x] = NULL;
+	char **arg = NULL;
+
+	for (int i = 0; i < argc-1; i++) {
+		int retval = fork();
+		if(retval == 0){
+			closepipes(i, pfds, argc-2);
+			//redirect stdin
+			if(i != 0){
+				close(pfds[i-1][1]);
+				dup2(pfds[i-1][0], 0);
+			}
+			//redirect stdout
+			if(i != argc-2){
+				close(pfds[i][0]);		
+				dup2(pfds[i][1], 1);
+			}	
+			arg = NULL;
+			arg = split(argv[i+1], arg);
+			if(execvp(arg[0],arg)){
+				printf("EXEC ERROR\n");
+				mfree(arg);
+				exit(1);
+			}
+		} else if(retval < 0) {
+			perror("FORK ERROR");
+			exit(1);
+		} 
 	}
 
-	close(pfds[0][0]);
-	close(pfds[0][1]);
-	wait(NULL);
-	wait(NULL);
+	for(int j = 0; j < argc-2; j++){
+		if(close(pfds[j][0]) == -1){
+			perror("CLOSE ERROR");
+			exit(1);
+		}
+
+		if(close(pfds[j][1]) == -1){
+			perror("CLOSE ERROR");
+			exit(1);
+		}
+	}
+
+	for(int i = 0; i < argc-1; i++){
+		if(wait(NULL) == -1){
+			perror("WAIT ERROR");
+			exit(1);
+		}
+	}
 	int pos = 0;
 	while(true){
 		if(pfds[pos] == NULL){
